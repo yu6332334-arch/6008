@@ -82,12 +82,14 @@ class AudioEngine:
     WAKE_STATE_INACTIVE = 0
     WAKE_STATE_ACTIVE = 1
     
-    def __init__(self, model_size="base", language="en", device="cpu"):
+    def __init__(self, model_size="base", language=None, device="cpu"):
         print("[AudioEngine] Initializing...")
         
         # Configuration
         self.model_size = model_size
         self.language = language
+        self.last_detected_language = None
+        self.last_language_probability = None
         self.device = device
         
         # State management (thread-safe with RLock for reentrant locking)
@@ -314,6 +316,7 @@ class AudioEngine:
             
             # Basic quality check
             rms = np.sqrt(np.mean(audio_data**2))
+            print(f"[AudioEngine] Recorded RMS={rms:.6f}")
             _stt_log(f"Recorded {len(frames)} frames; RMS={rms:.6f}")
             if rms < 0.001:
                 print("[AudioEngine] Audio too quiet")
@@ -531,6 +534,9 @@ class AudioEngine:
                 else:
                     _stt_log("VAD filter disabled (dependencies unavailable)")
                 
+                self.last_detected_language = getattr(info, "language", None)
+                self.last_language_probability = getattr(info, "language_probability", None)
+                _stt_log(f"Language detected: {self.last_detected_language}, probability={self.last_language_probability}")
                 # CRITICAL FIX: Convert generator to list ONCE
                 # Aggressively limit segments and detect repetition
                 segments_list = []
